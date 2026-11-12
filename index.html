@@ -18,13 +18,38 @@ body *{visibility:hidden!important}
 #printArea .cut{text-align:center;border-top:1px dashed #444;margin:5px 0;padding-top:2px;font-size:9px}
 @page{size:auto;margin:5mm}
 }
+
+
+/* Acceso al sistema: pantalla independiente y adaptable */
+#appRoot{display:none}
+#authGate{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(circle at 10% 10%,#254c84 0,transparent 38%),linear-gradient(145deg,#0a1528,#142c4b 60%,#0a172b)}
+.authBox{width:100%;max-width:420px;background:#fff;border:1px solid #d9e2ef;border-radius:20px;padding:32px;box-shadow:0 22px 75px #0005}
+.authBrand{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.authBrand img{width:68px;height:68px;object-fit:contain;flex-shrink:0;background:#f5f8fd;border:1px solid #e1e7ef;border-radius:14px;padding:5px}
+.authBrand h1{font-size:24px;line-height:1.15;margin:0;color:#142846}
+.authBrand span{font-size:12px;color:#64748b}
+.authBox .authIntro{color:#566780;line-height:1.5;margin:0 0 23px}
+.authBox .field{margin-bottom:17px}
+.authBox label{font-size:13px;margin-bottom:7px}
+.authBox input{min-height:45px}
+.authBox .authSubmit{width:100%;min-height:46px;margin-top:5px;background:#2056a5}
+.authBox .authSubmit:disabled{opacity:.65;cursor:wait}
+.authBox #authError{min-height:20px;margin-top:14px;font-size:13px;color:#b91c1c;line-height:1.5}
+.authBox .authNote{font-size:12px;color:#718096;margin:18px 0 0;text-align:center}
+.passwordField{position:relative}.passwordField input{padding-right:85px}
+.passwordToggle{position:absolute;right:6px;top:5px;padding:8px;background:transparent;color:#28518c;font-size:12px}
+.passwordToggle:hover{background:#eaf1fb;filter:none}
+header .brand img{width:58px;height:58px;padding:4px;background:#fff;border-radius:12px;flex-shrink:0}
+header .brand h1{font-size:clamp(21px,2.5vw,27px)}
+@media(max-width:550px){.authBox{padding:24px 20px}.authBrand h1{font-size:21px}header .brand{gap:10px}header .brand img{width:48px;height:48px}}
+@media print{#authGate{display:none!important}}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="./firebase-config.js"></script>
 <style id="whatsapp-button-style">button.whatsapp{background:#16834b;color:#fff}button.whatsapp:hover{background:#11693b}</style></head><body>
-<section id="authGate"><div class="authBox"><h1>Ciber Acajutla</h1><p>Acceso al sistema de gestión. Solo cuentas autorizadas.</p><form id="loginForm"><div class="field"><label for="loginEmail">Correo electrónico</label><input id="loginEmail" type="email" autocomplete="username" required></div><div class="field"><label for="loginPassword">Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" required></div><button type="submit">Iniciar sesión</button></form><div id="authError" role="alert"></div><p style="font-size:12px">Las cuentas se crean desde la consola de Firebase por el administrador.</p></div></section>
+<section id="authGate"><div class="authBox"><div class="authBrand"><img src="logo-ca.png" alt="Logo de Ciber Acajutla"><div><h1>Ciber Acajutla</h1><span>Sistema de gestión de reparaciones</span></div></div><p class="authIntro">Bienvenido. Ingresa con tu cuenta autorizada para administrar las órdenes del taller.</p><form id="loginForm"><div class="field"><label for="loginEmail">Correo electrónico</label><input id="loginEmail" type="email" autocomplete="username" inputmode="email" placeholder="correo@ejemplo.com" required></div><div class="field"><label for="loginPassword">Contraseña</label><div class="passwordField"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Ingresa tu contraseña" required><button type="button" id="togglePassword" class="passwordToggle" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button></div></div><button type="submit" id="loginSubmit" class="authSubmit">Iniciar sesión</button></form><div id="authError" role="status" aria-live="polite"></div><p class="authNote">Acceso exclusivo para personal autorizado.</p></div></section>
 <div id="appRoot">
 <header><div class="brand"><img id="logoPreview" alt="Logo Ciber Acajutla" src="logo-ca.png"><div><h1 id="brandTitle">Ciber Acajutla</h1><p>Gestión de taller técnico · Órdenes y finanzas</p></div></div><div class="actions"><div id="sessionBar"><span id="sessionEmail"></span><button class="secondary small" id="logoutBtn">Cerrar sesión</button></div><button class="secondary" id="exportBtn">Respaldar JSON</button><button class="secondary" id="importBtn">Restaurar respaldo</button><input id="importFile" type="file" accept=".json,application/json" hidden></div></header>
 <main class="wrap"><div class="notice">Los registros se sincronizan mediante Firebase entre los equipos autorizados. Necesitas conexión a Internet. Exporta respaldos JSON periódicamente y no publiques contraseñas ni datos de clientes en GitHub.</div>
@@ -108,11 +133,12 @@ $('historySearch').oninput=renderHistory;$('historyStatus').onchange=renderHisto
 function drawChart(){const c=$('chart'),rect=c.getBoundingClientRect();if(rect.width<10)return;const ratio=Math.min(devicePixelRatio||1,2),w=rect.width,h=180;c.width=Math.round(w*ratio);c.height=Math.round(h*ratio);const ctx=c.getContext('2d');ctx.scale(ratio,ratio);ctx.clearRect(0,0,w,h);const start=weekStart(new Date()),weeks=[];for(let i=7;i>=0;i--){const d=new Date(start);d.setDate(d.getDate()-i*7);weeks.push({key:dayKey(d),label:d.getDate()+'/'+(d.getMonth()+1),sum:0})}for(const o of db.orders){if(!o.paidDate)continue;for(let i=0;i<weeks.length;i++){const next=weeks[i+1]?.key||'9999-99-99';if(o.paidDate>=weeks[i].key&&o.paidDate<next){weeks[i].sum+=Number(o.paid||0);break}}}const max=Math.max(1,...weeks.map(x=>x.sum));const pad=28,base=h-30,chartH=base-12,slot=(w-pad-10)/8;ctx.font='11px system-ui';ctx.fillStyle='#64748b';ctx.textAlign='center';weeks.forEach((x,i)=>{const x0=pad+i*slot+slot*.18,bw=slot*.64,bh=x.sum/max*chartH;ctx.fillStyle='#2563eb';ctx.fillRect(x0,base-bh,bw,Math.max(bh,x.sum?2:0));ctx.fillStyle='#475569';ctx.fillText(x.label,x0+bw/2,h-10);if(x.sum){ctx.fillStyle='#1e3a8a';ctx.fillText(money(x.sum),x0+bw/2,Math.max(10,base-bh-5))}})}window.addEventListener('resize',drawChart);window.addEventListener('afterprint',()=>{$('printArea').innerHTML=''});
 const gate=document.getElementById('authGate'),app=document.getElementById('appRoot');
 function authMessage(msg){document.getElementById('authError').textContent=msg}
+$('togglePassword').onclick=()=>{const pass=$('loginPassword'),show=pass.type==='password';pass.type=show?'text':'password';$('togglePassword').textContent=show?'Ocultar':'Mostrar';$('togglePassword').setAttribute('aria-pressed',String(show));$('togglePassword').setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña')};
 try{
  const cfg=window.CIBER_FIREBASE_CONFIG;
  if(!cfg||!cfg.apiKey||cfg.apiKey==='REEMPLAZAR'){throw Error('Configura firebase-config.js con los datos de tu proyecto Firebase.')}
  firebase.initializeApp(cfg);const auth=firebase.auth();
- $('loginForm').onsubmit=async e=>{e.preventDefault();authMessage('Iniciando sesión...');try{await auth.signInWithEmailAndPassword($('loginEmail').value.trim(),$('loginPassword').value)}catch(err){authMessage('No se pudo iniciar sesión. Verifica correo, contraseña y autorización.')} };
+ $('loginForm').onsubmit=async e=>{e.preventDefault();const btn=$('loginSubmit');btn.disabled=true;btn.textContent='Ingresando...';authMessage('Iniciando sesión...');try{await auth.signInWithEmailAndPassword($('loginEmail').value.trim(),$('loginPassword').value)}catch(err){authMessage('No se pudo iniciar sesión. Verifica correo, contraseña y autorización.')}finally{btn.disabled=false;btn.textContent='Iniciar sesión'}};
  $('logoutBtn').onclick=()=>auth.signOut();
  auth.onAuthStateChanged(async user=>{unsubscribe.forEach(fn=>fn());unsubscribe=[];syncReady=false;pending=false;app.style.display='none';gate.style.display='grid';if(!user){currentStaff=null;auditEntries=[];$('auditPanel').hidden=true;$('loginPassword').value='';authMessage('');return}authMessage('Verificando autorización...');try{store=firebase.firestore();const staffDoc=await store.collection('staff').doc(user.uid).get();if(!staffDoc.exists||staffDoc.data().active!==true||!['admin','employee'].includes(staffDoc.data().role)){authMessage('Tu cuenta no está autorizada. Solicita acceso al administrador.');await auth.signOut();return}if(auth.currentUser?.uid!==user.uid)return;currentStaff=staffDoc.data();$('auditPanel').hidden=currentStaff.role!=='admin';$('sessionEmail').textContent=(currentStaff.name||user.email||'')+' · '+currentStaff.role;authMessage('');gate.style.display='none';app.style.display='block';startSync()}catch(err){authMessage('No se pudo verificar el acceso. Revisa las reglas de Firestore y tu conexión.')}});
 }catch(err){authMessage(err.message)}
