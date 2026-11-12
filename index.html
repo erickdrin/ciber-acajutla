@@ -44,17 +44,28 @@ input:focus,select:focus,textarea:focus{outline:2px solid #f3b6b9;border-color:#
 <p class="privacy-note">Busca por nombre, teléfono o documento de identidad para consultar reparaciones anteriores del cliente. Acceso exclusivo para personal autorizado.</p>
 <div class="history-controls"><input type="search" id="historySearch" placeholder="Nombre, teléfono o documento de identidad" aria-label="Buscar historial de reparaciones"><select id="historyStatus" aria-label="Filtrar estado"><option value="">Todos los estados</option><option>Recibido</option><option>En diagnóstico</option><option>En reparación</option><option>Listo</option><option>Entregado</option><option>Cancelado</option></select></div>
 <div class="history-summary" id="historySummary">Escribe para consultar el historial.</div><div class="scroll"><table><thead><tr><th>Fecha / Orden</th><th>Cliente</th><th>Equipo</th><th>Reparación</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="historyRows"></tbody></table></div></section>
-</div></div></main><section id="printArea"></section></div>
+</div></div><section class="card" id="auditPanel" hidden><h2>Auditoría de actividad · Solo administrador</h2><p class="privacy-note">Registro de cambios nuevos. Los eventos son declarados por la aplicación; para una auditoría resistente a manipulaciones se requiere un backend confiable.</p><div class="toolbar"><input id="auditSearch" type="search" placeholder="Buscar empleado, orden o acción"></div><div class="scroll"><table><thead><tr><th>Fecha y hora</th><th>Empleado</th><th>Orden</th><th>Acción</th></tr></thead><tbody id="auditRows"></tbody></table></div></section></main><section id="printArea"></section></div>
 <script>
 (()=>{'use strict';const KEY='ciber_acajutla_taller_v2';const $=id=>document.getElementById(id);const money=n=>'$'+Number(n||0).toFixed(2);const today=()=>{let d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const defaultData=()=>({orders:[],expenses:[],business:{name:'Ciber Acajutla',contact:'',logo:''},nextId:1});let db=defaultData();
 function valid(data){return data&&Array.isArray(data.orders)&&Array.isArray(data.expenses)&&data.business&&typeof data.business==='object'&&Number.isSafeInteger(data.nextId)&&data.nextId>=1}
-let store=null,unsubscribe=[],baseline={orders:new Map(),expenses:new Map(),business:''},syncReady=false,pending=false;
+let currentStaff=null,auditEntries=[];let store=null,unsubscribe=[],baseline={orders:new Map(),expenses:new Map(),business:''},syncReady=false,pending=false;
 function save(){
  if(!syncReady||!store){alert('Espera a que termine la sincronización.');return false}
  if(pending){alert('Guardando cambios anteriores. Intenta de nuevo en un momento.');return false}
  const batch=store.batch(),nextOrders=new Map(db.orders.map(o=>[String(o.id),JSON.stringify(o)])),nextExpenses=new Map(db.expenses.map(e=>[String(e.id),JSON.stringify(e)]));
- for(const [id,val] of nextOrders)if(baseline.orders.get(id)!==val)batch.set(store.collection('orders').doc(id),JSON.parse(val));
- for(const id of baseline.orders.keys())if(!nextOrders.has(id))batch.delete(store.collection('orders').doc(id));
+ for(const [id,val] of nextOrders)if(baseline.orders.get(id)!==val){
+  const newer=JSON.parse(val),older=baseline.orders.has(id)?JSON.parse(baseline.orders.get(id)):null;
+  const label=!older?'Registró la orden':older.status!==newer.status?'Cambió estado: '+older.status+' → '+newer.status:'Editó la orden';
+  const actor=firebase.auth().currentUser;
+  const ref=store.collection('auditLogs').doc();
+  batch.set(ref,{actorUid:actor.uid,actorName:currentStaff?.name||actor.email||'Usuario',orderId:id,action:label,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  batch.set(store.collection('orders').doc(id),newer);
+ }
+ for(const id of baseline.orders.keys())if(!nextOrders.has(id)){
+  const actor=firebase.auth().currentUser;
+  batch.set(store.collection('auditLogs').doc(),{actorUid:actor.uid,actorName:currentStaff?.name||actor.email||'Usuario',orderId:id,action:'Eliminó la orden',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  batch.delete(store.collection('orders').doc(id));
+ }
  for(const [id,val] of nextExpenses)if(baseline.expenses.get(id)!==val)batch.set(store.collection('expenses').doc(id),JSON.parse(val));
  for(const id of baseline.expenses.keys())if(!nextExpenses.has(id))batch.delete(store.collection('expenses').doc(id));
  const business=JSON.stringify(db.business);
@@ -69,8 +80,11 @@ function startSync(){
  const ready=()=>{if(Object.values(loaded).every(Boolean)){syncReady=true;render()}};
  unsubscribe.push(store.collection('orders').onSnapshot(s=>{if(pending)return;db.orders=s.docs.map(d=>d.data());baseline.orders=new Map(db.orders.map(o=>[String(o.id),JSON.stringify(o)]));loaded.orders=true;ready()},syncError));
  unsubscribe.push(store.collection('expenses').onSnapshot(s=>{if(pending)return;db.expenses=s.docs.map(d=>d.data());baseline.expenses=new Map(db.expenses.map(e=>[String(e.id),JSON.stringify(e)]));loaded.expenses=true;ready()},syncError));
+ if(currentStaff?.role==='admin')unsubscribe.push(store.collection('auditLogs').orderBy('createdAt','desc').limit(300).onSnapshot(s=>{auditEntries=s.docs.map(d=>d.data());renderAudit()},syncError));
  unsubscribe.push(store.collection('settings').doc('business').onSnapshot(s=>{if(pending)return;db.business=s.exists?s.data():defaultData().business;baseline.business=s.exists?JSON.stringify(db.business):'';loaded.business=true;ready()},syncError));
 }
+function renderAudit(){const body=$('auditRows');if(!body)return;body.replaceChildren();const term=$('auditSearch').value.trim().toLowerCase();const events=auditEntries.filter(e=>[e.actorName,e.orderId,e.action].join(' ').toLowerCase().includes(term));for(const e of events){const tr=document.createElement('tr');const stamp=e.createdAt?.toDate?.();textCell(tr,stamp?stamp.toLocaleString('es-SV'):'Pendiente');textCell(tr,e.actorName||'Usuario');textCell(tr,'#'+e.orderId);textCell(tr,e.action);body.append(tr)}if(!events.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=4;td.className='empty';td.textContent='Sin actividad registrada';tr.append(td);body.append(tr)}}
+$('auditSearch').oninput=renderAudit;
 function syncError(e){document.getElementById('authError').textContent='Error de sincronización: '+e.message;alert('Error de sincronización: '+e.message)}
 const num=id=>Number($(id).value);const balance=o=>Math.max(0,Number(o.estimate||0)-Number(o.paid||0));const active=o=>!['Entregado','Cancelado'].includes(o.status);const dateLabel=s=>s?String(s).slice(0,10):'—';const weekStart=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-(x.getDay()+6)%7);return x};const dayKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');function textCell(row,text){const td=document.createElement('td');td.textContent=String(text??'');row.append(td);return td}function actionBtn(label,fn,cls='secondary'){const b=document.createElement('button');b.type='button';b.className='small '+cls;b.textContent=label;b.onclick=fn;return b}function setBusiness(){ $('businessName').value=db.business.name||'Ciber Acajutla';$('businessContact').value=db.business.contact||'';$('brandTitle').textContent=db.business.name||'Ciber Acajutla';$('logoPreview').hidden=false;$('logoPreview').src=db.business.logo||'logo-ca.png'}function render(){setBusiness();const paid=db.orders.reduce((s,o)=>s+Number(o.paid||0),0),exp=db.expenses.reduce((s,e)=>s+Number(e.amount||0),0);$('statPaid').textContent=money(paid);$('statDue').textContent=money(db.orders.reduce((s,o)=>s+balance(o),0));$('statExpenses').textContent=money(exp);$('statNet').textContent=money(paid-exp);$('statActive').textContent=db.orders.filter(active).length;const start=dayKey(weekStart(new Date()));$('statWeek').textContent=money(db.orders.reduce((s,o)=>s+((o.paidDate||'')>=start?Number(o.paid||0):0),0));renderOrders();renderExpenses();renderHistory();drawChart()}
 // WhatsApp: abre el chat con un borrador; el usuario debe confirmar el envío.
@@ -106,7 +120,7 @@ try{
  firebase.initializeApp(cfg);const auth=firebase.auth();
  $('loginForm').onsubmit=async e=>{e.preventDefault();authMessage('Iniciando sesión...');try{await auth.signInWithEmailAndPassword($('loginEmail').value.trim(),$('loginPassword').value)}catch(err){authMessage('No se pudo iniciar sesión. Verifica correo, contraseña y autorización.')} };
  $('logoutBtn').onclick=()=>auth.signOut();
- auth.onAuthStateChanged(async user=>{unsubscribe.forEach(fn=>fn());unsubscribe=[];syncReady=false;pending=false;app.style.display='none';gate.style.display='grid';if(!user){$('loginPassword').value='';authMessage('');return}authMessage('Verificando autorización...');try{store=firebase.firestore();const staffDoc=await store.collection('staff').doc(user.uid).get();if(!staffDoc.exists||staffDoc.data().active!==true||!['admin','employee'].includes(staffDoc.data().role)){authMessage('Tu cuenta no está autorizada. Solicita acceso al administrador.');await auth.signOut();return}if(auth.currentUser?.uid!==user.uid)return;$('sessionEmail').textContent=user.email||'';authMessage('');gate.style.display='none';app.style.display='block';startSync()}catch(err){authMessage('No se pudo verificar el acceso. Revisa las reglas de Firestore y tu conexión.')}});
+ auth.onAuthStateChanged(async user=>{unsubscribe.forEach(fn=>fn());unsubscribe=[];syncReady=false;pending=false;app.style.display='none';gate.style.display='grid';if(!user){currentStaff=null;auditEntries=[];$('auditPanel').hidden=true;$('loginPassword').value='';authMessage('');return}authMessage('Verificando autorización...');try{store=firebase.firestore();const staffDoc=await store.collection('staff').doc(user.uid).get();if(!staffDoc.exists||staffDoc.data().active!==true||!['admin','employee'].includes(staffDoc.data().role)){authMessage('Tu cuenta no está autorizada. Solicita acceso al administrador.');await auth.signOut();return}if(auth.currentUser?.uid!==user.uid)return;currentStaff=staffDoc.data();$('auditPanel').hidden=currentStaff.role!=='admin';$('sessionEmail').textContent=(currentStaff.name||user.email||'')+' · '+currentStaff.role;authMessage('');gate.style.display='none';app.style.display='block';startSync()}catch(err){authMessage('No se pudo verificar el acceso. Revisa las reglas de Firestore y tu conexión.')}});
 }catch(err){authMessage(err.message)}
 })();
 </script></body></html>
