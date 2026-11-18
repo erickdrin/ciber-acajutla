@@ -11,6 +11,15 @@ service cloud.firestore {
     function isAdmin() {
       return isStaff() && get(staffPath()).data.role == 'admin';
     }
+    function validTrackingOrderUpdate(id) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let token = request.resource.data.get('trackingId', '');
+      return !changed.hasAny(['trackingId']) ||
+        (!resource.data.keys().hasAny(['trackingId']) &&
+         token is string && token.matches('^[a-f0-9]{64}$') &&
+         existsAfter(/databases/$(database)/documents/publicTracking/$(token)) &&
+         getAfter(/databases/$(database)/documents/publicTracking/$(token)).data.orderId == id);
+    }
     function validOrderMoney() {
       return request.resource.data.estimate is number &&
         request.resource.data.paid is number &&
@@ -22,15 +31,54 @@ service cloud.firestore {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow list, create, update, delete: if isAdmin();
     }
+    // El empleado puede cobrar solo el saldo exacto al entregar.
+    // Una orden entregada queda bloqueada, salvo creación del QR de seguimiento.
+    function employeeDeliveryPayment() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let beforePaid = resource.data.paid;
+      let afterPaid = request.resource.data.paid;
+      return resource.data.status != 'Entregado' &&
+        request.resource.data.status == 'Entregado' &&
+        changed.hasAny(['status']) &&
+        request.resource.data.estimate == resource.data.estimate &&
+        beforePaid is number && beforePaid >= 0 &&
+        afterPaid == request.resource.data.estimate &&
+        afterPaid > beforePaid &&
+        request.resource.data.paidDate is string &&
+        request.resource.data.paidDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    function employeeOrderUpdate(id) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let normalFields = ['client','phone','documentId','deviceType','device',
+        'imei','accessories','fault','status','notes','deliveredAt','trackingId'];
+      let paymentFields = ['client','phone','documentId','deviceType','device',
+        'imei','accessories','fault','status','notes','deliveredAt','trackingId',
+        'paid','paidDate'];
+      let onlyQr = changed.hasOnly(['trackingId']) && changed.hasAny(['trackingId']);
+      let canEdit = resource.data.status != 'Entregado' && (
+        changed.hasOnly(normalFields) ||
+        (changed.hasOnly(paymentFields) && employeeDeliveryPayment())
+      );
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.estimate == resource.data.estimate &&
+        (!changed.hasAny(['deliveredAt']) ||
+          (resource.data.status != 'Entregado' &&
+           request.resource.data.status == 'Entregado' &&
+           !resource.data.keys().hasAny(['deliveredAt']) &&
+           request.resource.data.deliveredAt is string)) &&
+        (canEdit || onlyQr);
+    }
     match /orders/{id} {
       allow read: if isStaff();
-      allow create: if isStaff() && validOrderMoney() &&
+      allow create: if isStaff() && !request.resource.data.keys().hasAny(['trackingId']) &&
+        validOrderMoney() &&
         (isAdmin() || (request.resource.data.estimate == 0 &&
-                       request.resource.data.paid == 0 &&
-                       request.resource.data.paidDate == ''));
-      allow update: if isStaff() && validOrderMoney() &&
-        (isAdmin() || !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['estimate','paid','paidDate','id','createdAt']));
+          request.resource.data.paid == 0 && request.resource.data.paidDate == '' &&
+          request.resource.data.status != 'Entregado' &&
+          !request.resource.data.keys().hasAny(['warrantyDays','warrantyTerms','deliveredAt'])));
+      allow update: if isStaff() && validOrderMoney() && validTrackingOrderUpdate(id) &&
+        (isAdmin() || employeeOrderUpdate(id));
       allow delete: if isAdmin();
     }
     match /expenses/{id} {
@@ -48,6 +96,31 @@ service cloud.firestore {
         request.resource.data.orderId is string &&
         request.resource.data.action is string &&
         request.resource.data.createdAt == request.time;
+    }
+    // Documento público con solo cuatro campos. ID aleatorio de 256 bits.
+    function validPublicTracking(t) {
+      return t.keys().hasOnly(['orderId','status','deviceType','receivedDate']) &&
+        t.keys().hasAll(['orderId','status','deviceType','receivedDate']) &&
+        t.orderId is string && t.orderId.matches('^[0-9]{10,20}$') &&
+        t.status is string && t.status.size() <= 40 &&
+        t.deviceType is string && t.deviceType.size() <= 60 &&
+        t.receivedDate is string && t.receivedDate.size() <= 10 &&
+        existsAfter(/databases/$(database)/documents/orders/$(t.orderId)) &&
+        getAfter(/databases/$(database)/documents/orders/$(t.orderId)).data.status == t.status &&
+        getAfter(/databases/$(database)/documents/orders/$(t.orderId)).data.deviceType == t.deviceType &&
+        getAfter(/databases/$(database)/documents/orders/$(t.orderId)).data.createdAt is string &&
+        getAfter(/databases/$(database)/documents/orders/$(t.orderId)).data.createdAt.matches('^' + t.receivedDate + '.*');
+    }
+    match /publicTracking/{token} {
+      allow get: if token.matches('^[a-f0-9]{64}$');
+      allow list: if false;
+      allow create: if isStaff() && token.matches('^[a-f0-9]{64}$') &&
+        validPublicTracking(request.resource.data) &&
+        getAfter(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.trackingId == token;
+      allow update: if isStaff() && validPublicTracking(request.resource.data) &&
+        request.resource.data.orderId == resource.data.orderId &&
+        getAfter(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.trackingId == token;
+      allow delete: if isAdmin() && !existsAfter(/databases/$(database)/documents/orders/$(resource.data.orderId));
     }
     match /{document=**} { allow read, write: if false; }
   }
