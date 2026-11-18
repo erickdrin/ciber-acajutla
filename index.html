@@ -271,102 +271,52 @@ async function downloadClientPdf(id){
  }catch(err){alert('No se pudo preparar el QR del PDF: '+(err.message||err));return}
  try{
   const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a5',compress:true});
-  const pageW=148,pageH=210,left=10,right=10,contentW=pageW-left-right;
-  let y=12;
-  const newPage=()=>{pdf.addPage();y=12};
-  const check=(height)=>{if(y+height>pageH-13)newPage()};
-  const line=(label,value,opts={})=>{
-   const text=String(value??'—')||'—';
-   const labelWidth=opts.labelWidth||31;
-   const valueWidth=contentW-labelWidth-2;
-   pdf.setFont('helvetica','normal');pdf.setFontSize(8.4);
-   const lines=pdf.splitTextToSize(text,valueWidth);
-   const height=Math.max(1,lines.length)*4.3+1.5;
-   check(height);
-   pdf.setFont('helvetica','bold');pdf.text(label,left,y);
-   pdf.setFont('helvetica','normal');pdf.text(lines,left+labelWidth,y);
-   y+=height;
-  };
-  const paragraph=(label,value)=>{
-   const text=String(value??'—')||'—';
-   pdf.setFontSize(8.4);
-   const lines=pdf.splitTextToSize(text,contentW);
-   check(5+lines.length*4.3);
-   pdf.setFont('helvetica','bold');pdf.text(label,left,y);y+=4.5;
-   pdf.setFont('helvetica','normal');pdf.text(lines,left,y);y+=lines.length*4.3+1.5;
-  };
-  const divider=()=>{check(5);pdf.setDrawColor(210,218,228);pdf.line(left,y,pageW-right,y);y+=4};
-  // Usar el logo guardado cuando sea compatible; si no, mantener encabezado de texto.
+  // Factura compacta: una sola hoja tamaño carta, sin saltos de página.
+  const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'letter',compress:true});
+  const W=215.9,H=279.4,L=15,R=15,C=W-L-R;
+  let y=14;
+  const set=(size=9,bold=false,color=[30,45,65])=>{pdf.setFont('helvetica',bold?'bold':'normal');pdf.setFontSize(size);pdf.setTextColor(...color)};
+  const rule=()=>{pdf.setDrawColor(213,222,233);pdf.line(L,y,W-R,y);y+=5};
+  const fit=(v,max)=>{const t=String(v??'—').replace(/\s+/g,' ').trim()||'—';return pdf.splitTextToSize(t,max)};
+  const field=(label,value,x,width)=>{set(8,true);pdf.text(label,x,y);set(8);const text=fit(value,width-34);pdf.text(text.slice(0,2),x+34,y);return Math.min(2,text.length)};
+  const pair=(a,b,c,d)=>{const n=Math.max(field(a,b,L,C/2-3),field(c,d,L+C/2+3,C/2-3));y+=Math.max(1,n)*4.2+1.5};
+  const detail=(label,value,maxLines=2)=>{set(8,true);pdf.text(label,L,y);y+=4;set(8);let lines=fit(value,C);if(lines.length>maxLines){lines=lines.slice(0,maxLines);lines[maxLines-1]=lines[maxLines-1].replace(/.{0,3}$/,'...')}pdf.text(lines,L,y);y+=lines.length*4.1+2};
   const logo=db.business.logo;
   if(typeof logo==='string'&&/^data:image\/(png|jpeg);base64,/.test(logo)){
-   try{pdf.addImage(logo,logo.startsWith('data:image/png')?'PNG':'JPEG',left,y-2,15,15)}catch(_e){}
+   try{pdf.addImage(logo,logo.startsWith('data:image/png')?'PNG':'JPEG',L,y-2,17,17)}catch(_e){}
   }
-  pdf.setFont('helvetica','bold');pdf.setFontSize(14);
-  pdf.text(String(db.business.name||'Ciber Acajutla').slice(0,65),pageW/2,y+2,{align:'center',maxWidth:contentW-25});
-  y+=9;pdf.setFont('helvetica','normal');pdf.setFontSize(8);
-  pdf.text('COMPROBANTE DE SERVICIO TECNICO - CLIENTE',pageW/2,y,{align:'center'});y+=5;
-  const contact=String(db.business.contact||'').trim();
-  if(contact){const lines=pdf.splitTextToSize(contact,contentW);pdf.text(lines,pageW/2,y,{align:'center'});y+=lines.length*3.7+1}
-  pdf.text('WhatsApp consultas: 7067-4282',pageW/2,y,{align:'center'});y+=5;
-  divider();
-  line('Orden:', '#'+o.id);
-  line('Recepcion:', dateLabel(o.createdAt));
-  line('Estado:',o.status);
-  line('Cliente:',o.client);
-  line('Telefono:',o.phone);
-  line('Documento:',o.documentId||'No registrado');
-  line('Equipo:',(o.deviceType?o.deviceType+' - ':'')+o.device);
-  line('IMEI / Serie:',o.imei||'—');
-  paragraph('Accesorios recibidos:',o.accessories||'Ninguno especificado');
-  paragraph('Falla / diagnostico:',o.fault);
-  paragraph('Observaciones:',o.notes||'—');
-  divider();
-  line('Entrega:',dateTimeLabel(o.deliveredAt));
-  line('Garantia:',Number(o.warrantyDays||0)?o.warrantyDays+' dias':'Sin garantia');
-  line('Vencimiento:',warrantyEnd(o)?dateTimeLabel(warrantyEnd(o)):'—');
-  paragraph('Condiciones de garantia:',o.warrantyTerms||'No especificadas');
-  divider();
-  // Resumen tipo factura: un único servicio por orden, sin inventar repuestos ni impuestos.
-  check(48);
-  pdf.setFillColor(23,49,89);pdf.roundedRect(left,y,contentW,10,1.5,1.5,'F');
-  pdf.setTextColor(255,255,255);pdf.setFont('helvetica','bold');pdf.setFontSize(9);
-  pdf.text('DETALLE DEL SERVICIO',left+4,y+6.5);y+=13;
-  pdf.setTextColor(23,36,59);
-  pdf.setFont('helvetica','bold');pdf.setFontSize(8);
-  pdf.text('Descripcion',left+3,y);pdf.text('Importe',pageW-right-3,y,{align:'right'});y+=3;
-  pdf.setDrawColor(210,218,228);pdf.line(left,y,pageW-right,y);y+=5;
-  const serviceText='Servicio tecnico: '+(o.deviceType?o.deviceType+' / ':'')+o.device;
-  const serviceLines=pdf.splitTextToSize(serviceText,contentW-42);
-  check(serviceLines.length*4.1+26);
-  pdf.setFont('helvetica','normal');pdf.setFontSize(8.2);
-  pdf.text(serviceLines,left+3,y);
-  pdf.text(money(o.estimate),pageW-right-3,y,{align:'right'});
-  y+=Math.max(1,serviceLines.length)*4.1+4;
-  pdf.setDrawColor(210,218,228);pdf.line(left,y,pageW-right,y);y+=5;
-  pdf.setFont('helvetica','normal');pdf.text('Total del trabajo',left+3,y);
-  pdf.setFont('helvetica','bold');pdf.text(money(o.estimate),pageW-right-3,y,{align:'right'});y+=6;
-  pdf.setFont('helvetica','normal');pdf.text('Abonado / cobrado',left+3,y);
-  pdf.text(money(o.paid),pageW-right-3,y,{align:'right'});y+=6;
-  pdf.setFillColor(234,242,253);pdf.roundedRect(left,y-4,contentW,10,1.5,1.5,'F');
-  pdf.setFont('helvetica','bold');pdf.setFontSize(10);
-  pdf.text('SALDO PENDIENTE',left+3,y+2.5);
-  pdf.text(money(balance(o)),pageW-right-3,y+2.5,{align:'right'});y+=13;
-  // Patron sin dibujar: plantilla de referencia igual que el comprobante impreso.
-  check(25);pdf.setFont('helvetica','bold');pdf.setFontSize(8);
-  pdf.text('PATRON DE DESBLOQUEO',left,y);y+=4;
-  pdf.setFillColor(45,55,72);
-  for(let row=0;row<3;row++)for(let col=0;col<3;col++)pdf.circle(left+5+col*9,y+row*5,0.75,'F');
-  y+=18;
-  check(32);
-  pdf.addImage(qrData,'PNG',left,y,27,27);
-  pdf.setFont('helvetica','bold');pdf.setFontSize(8.5);
-  pdf.text('Seguimiento de reparacion',left+32,y+7);
-  pdf.setFont('helvetica','normal');pdf.setFontSize(8);
-  pdf.text(pdf.splitTextToSize('Escanea el QR para consultar el estado de tu equipo. Comparte este codigo solo con el cliente.',contentW-33),left+32,y+12);
-  y+=31;
-  check(7);pdf.setFontSize(7);pdf.setTextColor(95,105,120);
-  pdf.text('Conserva este comprobante para futuras consultas.',pageW/2,y,{align:'center'});
+  set(16,true,[22,49,89]);pdf.text(String(db.business.name||'Ciber Acajutla').slice(0,52),W/2,y+3,{align:'center',maxWidth:C-40});y+=9;
+  set(9,true);pdf.text('COMPROBANTE DE SERVICIO TECNICO',W/2,y,{align:'center'});y+=4;
+  set(8);const contact=String(db.business.contact||'').trim();if(contact){pdf.text(fit(contact,C).slice(0,1),W/2,y,{align:'center'});y+=4}
+  pdf.text('WhatsApp consultas: 7067-4282',W/2,y,{align:'center'});y+=6;rule();
+  pair('Orden:','#'+o.id,'Recepcion:',dateLabel(o.createdAt));
+  pair('Cliente:',o.client,'Telefono:',o.phone);
+  pair('Estado:',o.status,'Documento:',o.documentId||'—');
+  pair('Equipo:',(o.deviceType?o.deviceType+' - ':'')+o.device,'IMEI / Serie:',o.imei||'—');
+  detail('Trabajo realizado / falla reportada:',o.fault,3);
+  detail('Accesorios:',o.accessories||'Ninguno especificado',1);
+  if(String(o.notes||'').trim())detail('Observaciones:',o.notes,2);
+  rule();
+  pair('Entrega:',dateTimeLabel(o.deliveredAt),'Garantia:',Number(o.warrantyDays||0)?o.warrantyDays+' dias':'Sin garantia');
+  pair('Vencimiento:',warrantyEnd(o)?dateTimeLabel(warrantyEnd(o)):'—','Cobertura:',o.warrantyTerms||'No especificada');
+  y+=1;
+  pdf.setFillColor(22,49,89);pdf.roundedRect(L,y,C,10,1.5,1.5,'F');set(10,true,[255,255,255]);pdf.text('DETALLE DE FACTURA / SERVICIO',L+5,y+6.6);y+=15;
+  set(8,true);pdf.text('DESCRIPCION',L+3,y);pdf.text('IMPORTE',W-R-3,y,{align:'right'});y+=3;rule();
+  set(9);pdf.text(fit('Servicio tecnico - '+(o.deviceType?o.deviceType+' / ':'')+o.device,C-48).slice(0,2),L+3,y);
+  pdf.text(money(o.estimate),W-R-3,y,{align:'right'});y+=11;rule();
+  const amount=(label,value,bold=false)=>{set(9,bold);pdf.text(label,L+3,y);pdf.text(money(value),W-R-3,y,{align:'right'});y+=7};
+  amount('TOTAL DEL TRABAJO',o.estimate,true);
+  amount('ABONADO / COBRADO',o.paid);
+  pdf.setFillColor(233,241,251);pdf.roundedRect(L,y-4,C,12,2,2,'F');set(11,true,[22,49,89]);pdf.text('SALDO PENDIENTE',L+4,y+3.5);pdf.text(money(balance(o)),W-R-4,y+3.5,{align:'right'});y+=16;
+  // QR y patron en la misma franja inferior; nunca se crea una segunda página.
+  set(8,true);pdf.text('PATRON DE DESBLOQUEO',L,y+3);
+  pdf.setFillColor(50,60,75);
+  for(let row=0;row<3;row++)for(let col=0;col<3;col++)pdf.circle(L+8+col*10,y+10+row*7,0.9,'F');
+  const qrX=W-R-31;pdf.addImage(qrData,'PNG',qrX,y,30,30);
+  set(8,true);pdf.text('SEGUIMIENTO QR',qrX-5,y+7,{align:'right'});
+  set(8);pdf.text('Escanea para consultar tu orden',qrX-5,y+13,{align:'right'});
+  y+=36;rule();set(7,false,[95,105,120]);pdf.text('Conserva este comprobante para consultas y garantia. Documento no fiscal.',W/2,y,{align:'center'});
+  // Seguridad: en caso de textos excepcionalmente largos, se acotan arriba para garantizar una sola pagina.
   pdf.save('Ciber_Acajutla_Cliente_Orden_'+String(o.id).replace(/[^0-9a-z_-]/gi,'')+'.pdf');
  }catch(err){console.error('Error PDF cliente',err);alert('No se pudo generar el PDF: '+(err.message||err))}
 }
