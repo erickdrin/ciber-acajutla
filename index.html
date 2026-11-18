@@ -99,6 +99,7 @@ header .brand h1{font-size:clamp(21px,2.5vw,27px)}
   #printArea .receipt-qr span { font-size: 8px!important; line-height: 1.12!important; max-width: 185px!important; }
   #printArea .cut { margin: 3px 0!important; padding-top: 1px!important; font-size: 7px!important; }
 }
+@media print{#printArea .invoice-summary{margin-top:5px;border:1px solid #777;padding:4px}#printArea .invoice-summary> b{display:block;background:#e7eef8;padding:3px;margin-bottom:3px}#printArea .invoice-summary table tr:last-child{background:#e7eef8}#printArea .invoice-summary table td{padding:2px!important}}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -326,9 +327,31 @@ async function downloadClientPdf(id){
   line('Vencimiento:',warrantyEnd(o)?dateTimeLabel(warrantyEnd(o)):'—');
   paragraph('Condiciones de garantia:',o.warrantyTerms||'No especificadas');
   divider();
-  line('Presupuesto:',money(o.estimate));
-  line('Cobrado:',money(o.paid));
-  line('Saldo:',money(balance(o)));
+  // Resumen tipo factura: un único servicio por orden, sin inventar repuestos ni impuestos.
+  check(48);
+  pdf.setFillColor(23,49,89);pdf.roundedRect(left,y,contentW,10,1.5,1.5,'F');
+  pdf.setTextColor(255,255,255);pdf.setFont('helvetica','bold');pdf.setFontSize(9);
+  pdf.text('DETALLE DEL SERVICIO',left+4,y+6.5);y+=13;
+  pdf.setTextColor(23,36,59);
+  pdf.setFont('helvetica','bold');pdf.setFontSize(8);
+  pdf.text('Descripcion',left+3,y);pdf.text('Importe',pageW-right-3,y,{align:'right'});y+=3;
+  pdf.setDrawColor(210,218,228);pdf.line(left,y,pageW-right,y);y+=5;
+  const serviceText='Servicio tecnico: '+(o.deviceType?o.deviceType+' / ':'')+o.device;
+  const serviceLines=pdf.splitTextToSize(serviceText,contentW-42);
+  check(serviceLines.length*4.1+26);
+  pdf.setFont('helvetica','normal');pdf.setFontSize(8.2);
+  pdf.text(serviceLines,left+3,y);
+  pdf.text(money(o.estimate),pageW-right-3,y,{align:'right'});
+  y+=Math.max(1,serviceLines.length)*4.1+4;
+  pdf.setDrawColor(210,218,228);pdf.line(left,y,pageW-right,y);y+=5;
+  pdf.setFont('helvetica','normal');pdf.text('Total del trabajo',left+3,y);
+  pdf.setFont('helvetica','bold');pdf.text(money(o.estimate),pageW-right-3,y,{align:'right'});y+=6;
+  pdf.setFont('helvetica','normal');pdf.text('Abonado / cobrado',left+3,y);
+  pdf.text(money(o.paid),pageW-right-3,y,{align:'right'});y+=6;
+  pdf.setFillColor(234,242,253);pdf.roundedRect(left,y-4,contentW,10,1.5,1.5,'F');
+  pdf.setFont('helvetica','bold');pdf.setFontSize(10);
+  pdf.text('SALDO PENDIENTE',left+3,y+2.5);
+  pdf.text(money(balance(o)),pageW-right-3,y+2.5,{align:'right'});y+=13;
   // Patron sin dibujar: plantilla de referencia igual que el comprobante impreso.
   check(25);pdf.setFont('helvetica','bold');pdf.setFontSize(8);
   pdf.text('PATRON DE DESBLOQUEO',left,y);y+=4;
@@ -359,7 +382,7 @@ async function printOrder(id,clientOnly=false){
  const business=safe(db.business.name||'Ciber Acajutla'),contact=safe(db.business.contact||'');
  const logo=db.business.logo&&/^data:image\/(png|jpeg|webp);base64,/.test(db.business.logo)?'<img alt="Logo" src="'+db.business.logo+'">':'<img alt="Logo" src="logo-ca.png">';
  const header=`<div class="print-header"><h2>${logo} ${business}</h2><h3>Orden de servicio #${o.id}</h3><p>${contact}</p><p class="wa-contact">WhatsApp · Solo mensajes y consultas: 7067-4282</p></div>`;
- const info=`<div class="receipt-info"><table><tr><td><b>Fecha de recepción:</b> ${safe(dateLabel(o.createdAt))}</td><td><b>Estado:</b> ${safe(o.status)}</td></tr><tr><td><b>Cliente:</b> ${safe(o.client)}</td><td><b>Teléfono:</b> ${safe(o.phone)}</td></tr><tr><td><b>Documento:</b> ${safe(o.documentId||'No registrado')}</td><td></td></tr><tr><td><b>Equipo:</b> ${safe(o.deviceType?o.deviceType+' · '+o.device:o.device)}</td><td><b>IMEI / Serie:</b> ${safe(o.imei)}</td></tr></table><p><b>Accesorios:</b> ${safe(o.accessories||'Ninguno especificado')}</p><p><b>Falla / diagnóstico:</b> ${safe(o.fault)}</p><p><b>Observaciones:</b> ${safe(o.notes||'—')}</p><p><b>Entrega:</b> ${safe(dateTimeLabel(o.deliveredAt))} · ${safe(deliveryDate(o)?elapsedDelivery(o):'Pendiente')}</p><p><b>Garantía:</b> ${safe(Number(o.warrantyDays||0)?o.warrantyDays+' días':'Sin garantía')} · ${safe(warrantyLabel(o))}</p><p><b>Cobertura:</b> ${safe(o.warrantyTerms||'No especificada')}</p><p><b>Presupuesto:</b> ${money(o.estimate)} &nbsp; <b>Cobrado:</b> ${money(o.paid)} &nbsp; <b>Saldo:</b> ${money(balance(o))}</p></div>`;
+ const info=`<div class="receipt-info"><table><tr><td><b>Fecha de recepción:</b> ${safe(dateLabel(o.createdAt))}</td><td><b>Estado:</b> ${safe(o.status)}</td></tr><tr><td><b>Cliente:</b> ${safe(o.client)}</td><td><b>Teléfono:</b> ${safe(o.phone)}</td></tr><tr><td><b>Documento:</b> ${safe(o.documentId||'No registrado')}</td><td></td></tr><tr><td><b>Equipo:</b> ${safe(o.deviceType?o.deviceType+' · '+o.device:o.device)}</td><td><b>IMEI / Serie:</b> ${safe(o.imei)}</td></tr></table><p><b>Accesorios:</b> ${safe(o.accessories||'Ninguno especificado')}</p><p><b>Falla / diagnóstico:</b> ${safe(o.fault)}</p><p><b>Observaciones:</b> ${safe(o.notes||'—')}</p><p><b>Entrega:</b> ${safe(dateTimeLabel(o.deliveredAt))} · ${safe(deliveryDate(o)?elapsedDelivery(o):'Pendiente')}</p><p><b>Garantía:</b> ${safe(Number(o.warrantyDays||0)?o.warrantyDays+' días':'Sin garantía')} · ${safe(warrantyLabel(o))}</p><p><b>Cobertura:</b> ${safe(o.warrantyTerms||'No especificada')}</p><div class="invoice-summary"><b>DETALLE DEL SERVICIO</b><table><tr><td>Servicio técnico: ${safe(o.deviceType?o.deviceType+' · '+o.device:o.device)}</td><td style="text-align:right">${money(o.estimate)}</td></tr><tr><td><b>TOTAL DEL TRABAJO</b></td><td style="text-align:right"><b>${money(o.estimate)}</b></td></tr><tr><td>Abonado / cobrado</td><td style="text-align:right">${money(o.paid)}</td></tr><tr><td><b>SALDO PENDIENTE</b></td><td style="text-align:right"><b>${money(balance(o))}</b></td></tr></table></div></div>`;
  const pattern='<div class="pattern-panel"><div class="pattern-title">PATRÓN DE DESBLOQUEO</div><div class="pattern-grid">'+Array(9).fill('<span class="pattern-dot"></span>').join('')+'</div></div>';
  const qrBlock='<div class="receipt-qr"><img alt="QR de seguimiento" src="'+qrData+'"><span><b>Consulta el estado de tu reparación</b><br>Escanea este código QR.<br>Enlace privado: compártelo solo con el cliente.</span></div>';
  const receipt=(label)=>'<div class="copy"><div class="copy-label">'+label+'</div>'+header+'<div class="receipt-layout">'+info+pattern+'</div>'+qrBlock+'</div>';
