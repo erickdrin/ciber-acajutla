@@ -75,6 +75,30 @@ header .brand h1{font-size:clamp(21px,2.5vw,27px)}
 #orderRows td .order-actions{margin:0}
 @media(max-width:650px){#orderRows .order-actions{width:148px;grid-template-columns:repeat(2,minmax(65px,1fr))}#orderRows td:last-child{min-width:160px}}
 @media print{#orderRows .order-actions{display:none!important}}
+
+/* Ajuste de impresión compacta: solo afecta el comprobante, no el panel. */
+@media print {
+  @page { size: letter portrait; margin: 5mm; }
+  #printArea { font: 8.3px/1.12 Arial,sans-serif!important; }
+  #printArea .copy { padding: 3px 5px!important; }
+  #printArea .copy-label { font-size: 8px!important; line-height: 1.1!important; }
+  #printArea .print-header h2 { font-size: 10px!important; line-height: 1.05!important; gap: 3px!important; }
+  #printArea .print-header h2 img { max-height: 16px!important; max-width: 34px!important; }
+  #printArea .print-header h3, #printArea .print-header p { font-size: 8px!important; margin: 0!important; line-height: 1.12!important; }
+  #printArea .wa-contact { padding: 1px 0!important; margin: 2px 0!important; }
+  #printArea .receipt-layout { grid-template-columns:minmax(0,1fr) 90px!important; gap: 5px!important; }
+  #printArea table { font-size: 8.3px!important; }
+  #printArea table td { padding: 0 2px 0 0!important; line-height: 1.12!important; }
+  #printArea .receipt-info p { margin: 1px 0!important; line-height: 1.12!important; }
+  #printArea .pattern-panel { min-height: 83px!important; padding: 3px!important; }
+  #printArea .pattern-title { font-size: 7.5px!important; margin: 0 0 4px!important; }
+  #printArea .pattern-grid { gap: 9px 6px!important; padding: 2px 7px!important; }
+  #printArea .pattern-dot { width: 7px!important; height: 7px!important; }
+  #printArea .receipt-qr { gap: 6px!important; margin: 2px auto 1px!important; padding-top: 2px!important; }
+  #printArea .receipt-qr img { width: 76px!important; height: 76px!important; }
+  #printArea .receipt-qr span { font-size: 8px!important; line-height: 1.12!important; max-width: 185px!important; }
+  #printArea .cut { margin: 3px 0!important; padding-top: 1px!important; font-size: 7px!important; }
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
