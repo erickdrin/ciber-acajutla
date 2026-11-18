@@ -2,25 +2,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
+    function staffPath() { return /databases/$(database)/documents/staff/$(request.auth.uid); }
     function isStaff() {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.active == true;
+      return signedIn() && exists(staffPath()) &&
+        get(staffPath()).data.active == true &&
+        get(staffPath()).data.role in ['admin', 'employee'];
     }
     function isAdmin() {
-      return isStaff() &&
-        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role == 'admin';
+      return isStaff() && get(staffPath()).data.role == 'admin';
     }
-    match /staff/{userId} {
-      allow get: if isAdmin() || (signedIn() && request.auth.uid == userId);
-      allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+    function validOrderMoney() {
+      return request.resource.data.estimate is number &&
+        request.resource.data.paid is number &&
+        request.resource.data.estimate >= 0 &&
+        request.resource.data.paid >= 0 &&
+        request.resource.data.paid <= request.resource.data.estimate;
     }
-    match /orders/{orderId} { allow read, write: if isStaff(); }
-    match /expenses/{expenseId} { allow read, write: if isStaff(); }
-    match /settings/{documentId} {
+    match /staff/{uid} {
+      allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow list, create, update, delete: if isAdmin();
+    }
+    match /orders/{id} {
+      allow read: if isStaff();
+      allow create: if isStaff() && validOrderMoney() &&
+        (isAdmin() || (request.resource.data.estimate == 0 &&
+                       request.resource.data.paid == 0 &&
+                       request.resource.data.paidDate == ''));
+      allow update: if isStaff() && validOrderMoney() &&
+        (isAdmin() || !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['estimate','paid','paidDate','id','createdAt']));
+      allow delete: if isAdmin();
+    }
+    match /expenses/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /settings/{id} {
       allow read: if isStaff();
       allow write: if isAdmin();
+    }
+    match /auditLogs/{id} {
+      allow read, delete, update: if isAdmin();
+      allow create: if isStaff() &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.actorName is string &&
+        request.resource.data.orderId is string &&
+        request.resource.data.action is string &&
+        request.resource.data.createdAt == request.time;
     }
     match /{document=**} { allow read, write: if false; }
   }
