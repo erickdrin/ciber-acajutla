@@ -116,6 +116,27 @@ header .brand h1{font-size:clamp(21px,2.5vw,27px)}
 .alerts-list .alert-entry{display:flex;flex-direction:column;align-items:stretch;gap:6px}
 .alerts-list .alert-jump{border:0;background:transparent;color:inherit;text-align:left;padding:0;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:4px;width:100%}
 .alerts-list .alert-whatsapp{align-self:flex-start;background:#16834b;color:#fff;font-size:12px;padding:7px 10px}
+
+/* Comprobante compacto: QR junto al patrón, sin fila inferior. */
+@media print {
+  #printArea .receipt-layout {
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 122px 90px!important;
+    gap:7px!important;
+    align-items:start!important;
+  }
+  #printArea .receipt-qr {
+    display:flex!important;flex-direction:column!important;
+    justify-content:flex-start!important;align-items:center!important;
+    border:1px solid #aaa!important;
+    margin:0!important;padding:3px 2px!important;gap:2px!important;
+    text-align:center!important;min-width:0!important;
+  }
+  #printArea .receipt-qr img {width:73px!important;height:73px!important;max-width:100%!important;}
+  #printArea .receipt-qr span {font-size:7px!important;line-height:1.12!important;max-width:115px!important;}
+  #printArea .pattern-panel {min-height:98px!important;}
+  #printArea .receipt-info {min-width:0!important;}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -418,7 +439,7 @@ async function printOrder(id,clientOnly=false){
  const info=`<div class="receipt-info"><table><tr><td><b>Fecha de recepción:</b> ${safe(dateLabel(o.createdAt))}</td><td><b>Estado:</b> ${safe(o.status)}</td></tr><tr><td><b>Cliente:</b> ${safe(o.client)}</td><td><b>Teléfono:</b> ${safe(o.phone)}</td></tr><tr><td><b>Documento:</b> ${safe(o.documentId||'No registrado')}</td><td></td></tr><tr><td><b>Equipo:</b> ${safe(o.deviceType?o.deviceType+' · '+o.device:o.device)}</td><td><b>IMEI / Serie:</b> ${safe(o.imei)}</td></tr></table><p><b>Accesorios:</b> ${safe(o.accessories||'Ninguno especificado')}</p><p><b>Falla / diagnóstico:</b> ${safe(o.fault)}</p><p><b>Observaciones:</b> ${safe(o.notes||'—')}</p><p><b>Entrega:</b> ${safe(dateTimeLabel(o.deliveredAt))} · ${safe(deliveryDate(o)?elapsedDelivery(o):'Pendiente')}</p><p><b>Garantía:</b> ${safe(Number(o.warrantyDays||0)?o.warrantyDays+' días':'Sin garantía')} · ${safe(warrantyLabel(o))}</p><p><b>Cobertura:</b> ${safe(o.warrantyTerms||'No especificada')}</p><div class="invoice-summary"><b>DETALLE DEL SERVICIO</b><table><tr><td>Servicio técnico: ${safe(o.deviceType?o.deviceType+' · '+o.device:o.device)}</td><td style="text-align:right">${money(o.estimate)}</td></tr><tr><td><b>TOTAL DEL TRABAJO</b></td><td style="text-align:right"><b>${money(o.estimate)}</b></td></tr><tr><td>Abonado / cobrado</td><td style="text-align:right">${money(o.paid)}</td></tr><tr><td><b>SALDO PENDIENTE</b></td><td style="text-align:right"><b>${money(balance(o))}</b></td></tr></table></div></div>`;
  const pattern='<div class="pattern-panel"><div class="pattern-title">PATRÓN DE DESBLOQUEO</div><div class="pattern-grid">'+Array(9).fill('<span class="pattern-dot"></span>').join('')+'</div></div>';
  const qrBlock='<div class="receipt-qr"><img alt="QR de seguimiento" src="'+qrData+'"><span><b>Consulta el estado de tu reparación</b><br>Escanea este código QR.<br>Enlace privado: compártelo solo con el cliente.</span></div>';
- const receipt=(label)=>'<div class="copy"><div class="copy-label">'+label+'</div>'+header+'<div class="receipt-layout">'+info+pattern+'</div>'+qrBlock+'</div>';
+ const receipt=(label)=>'<div class="copy"><div class="copy-label">'+label+'</div>'+header+'<div class="receipt-layout">'+info+qrBlock+pattern+'</div></div>';
  $('printArea').innerHTML=clientOnly?receipt('COPIA DEL CLIENTE'):receipt('COPIA DEL CLIENTE')+'<div class="cut">✂ Cortar aquí</div>'+receipt('COPIA DEL TALLER');
  // Esperar a que el navegador prepare las imágenes antes de abrir la impresión.
  await Promise.all([...$('printArea').querySelectorAll('img')].map(img=>img.decode?.().catch(()=>{})||Promise.resolve()));
