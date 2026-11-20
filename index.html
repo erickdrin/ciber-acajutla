@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ciber Acajutla | Panel de Gestión</title><link rel="icon" href="logo-ca.png">
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ciber Acajutla | Panel de Gestión</title><meta name="theme-color" content="#10294d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Ciber Acajutla"><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icons/icon-192.png"><link rel="icon" href="logo-ca.png">
 <style>
 :root{--bg:#f1f5f9;--card:#fff;--ink:#17243b;--muted:#64748b;--blue:#2563eb;--border:#dce4ef;--green:#15803d;--red:#b91c1c}*{box-sizing:border-box}body{margin:0;background:var(--bg);font:14px system-ui,'Segoe UI',sans-serif;color:var(--ink)}header{background:linear-gradient(110deg,#10294d,#2257a5);color:white;padding:23px max(18px,calc((100vw - 1350px)/2));display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}header h1{margin:0;font-size:25px}header p{margin:4px 0 0;color:#c8dcfa}.wrap{max-width:1390px;margin:auto;padding:22px}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:13px;margin-bottom:18px}.stat,.card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 3px 16px #10243a0b}.stat{padding:17px}.stat span{color:var(--muted);font-size:12px;font-weight:650}.stat strong{display:block;font-size:25px;margin-top:8px}.layout{display:grid;grid-template-columns:minmax(310px,410px) minmax(0,1fr);gap:18px}.card{padding:20px;margin-bottom:18px}h2{font-size:18px;margin:0 0 17px}h3{font-size:15px;margin:20px 0 12px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:11px}.field{margin-bottom:12px;min-width:0}.field.full{grid-column:1/-1}label{display:block;font-weight:650;margin-bottom:5px;font-size:12px}input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px;background:#fff;font:inherit;color:var(--ink)}textarea{resize:vertical}input:focus,select:focus,textarea:focus{outline:2px solid #a4c3ff;border-color:var(--blue)}button,.button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer;font:inherit;font-weight:700;background:var(--blue);color:white}button:hover{filter:brightness(.92)}button.secondary,.button.secondary{background:#e8eef7;color:#1e3a60}button.danger{background:#fee2e2;color:#991b1b}button.green{background:var(--green)}button.small{font-size:12px;padding:7px 9px}.actions{display:flex;flex-wrap:wrap;gap:8px}.actions button{flex:1}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:11px 9px;text-align:left;border-bottom:1px solid #e2e8f0;vertical-align:top}th{background:#f8fafc;color:#475569;white-space:nowrap}.scroll{overflow:auto}.pill{border-radius:30px;padding:4px 9px;background:#dbeafe;color:#1e40af;white-space:nowrap;font-size:11px;font-weight:700}.pill.done{background:#dcfce7;color:#166534}.pill.warn{background:#fef3c7;color:#92400e}.muted{color:var(--muted)}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:13px}.toolbar input{flex:2;min-width:160px}.toolbar select{flex:1;min-width:140px}.notice{background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:10px 12px;color:#1e40af;font-size:12px;line-height:1.5;margin-bottom:15px}canvas{width:100%;height:180px;display:block}.empty{text-align:center;padding:25px;color:var(--muted)}#printArea{display:none}.brand{display:flex;align-items:center;gap:12px}.brand img{width:52px;height:52px;object-fit:contain;border-radius:8px;background:white}.footer{font-size:12px;color:var(--muted);margin-top:5px}.expense-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:1000px){.layout{grid-template-columns:1fr}}@media(max-width:550px){.wrap{padding:12px}.card{padding:14px}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.stat strong{font-size:20px}.expense-row{grid-template-columns:1fr}}@media print{
   @page{size:letter portrait;margin:6mm}
@@ -188,6 +188,45 @@ header .brand h1{font-size:clamp(21px,2.5vw,27px)}
   #orderRows .order-actions button{font-size:9px;padding:5px 1px}
 }
 
+</style><style id="mobile-pwa-styles">
+/* PWA móvil: no altera la vista de escritorio ni la impresión */
+@media screen and (max-width: 750px) {
+ html {scroll-padding-top:16px} body{overflow-x:hidden} .wrap{padding:12px 10px 92px!important}
+ header{padding:14px 12px;gap:12px;align-items:flex-start}header .brand{width:100%}header .brand h1{font-size:21px}header .brand p{font-size:11px}
+ header>.actions{width:100%;display:flex;align-items:center;gap:7px}header>.actions>button[data-admin-only]{font-size:11px;padding:8px}#sessionBar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0}#sessionEmail{font-size:11px;overflow-wrap:anywhere}
+ .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:12px}.stat strong{font-size:20px}.stat span{font-size:10px}
+ .layout{display:block}.layout>.card,.layout>div{min-width:0}.card{padding:14px;margin-bottom:12px;border-radius:13px}
+ .fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.field.full{grid-column:1/-1}
+ input,select,textarea{font-size:16px!important;min-height:43px}textarea{min-height:85px}button{min-height:40px;touch-action:manipulation}
+ .toolbar{display:grid;grid-template-columns:1fr}.toolbar input,.toolbar select{width:100%;min-width:0}
+ .phase6-head{align-items:stretch}.phase6-controls{width:100%}.phase6-controls select{flex:1;min-width:0}.phase6-panels{grid-template-columns:1fr}
+ .scroll:has(#orderRows){overflow:visible!important}
+ table:has(#orderRows){display:block;width:100%;table-layout:auto!important}
+ table:has(#orderRows)>thead{display:none}
+ #orderRows{display:grid;gap:10px;width:100%}
+ #orderRows tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:13px;border:1px solid #dce4ef;border-radius:13px;background:#fff;box-shadow:0 3px 10px #10243a0a}
+ #orderRows td{display:block!important;min-width:0!important;max-width:none!important;width:auto!important;padding:0!important;border:0!important;white-space:normal!important;overflow-wrap:anywhere;font-size:13px!important}
+ #orderRows td::before{display:block;font-size:10px;font-weight:700;letter-spacing:.02em;color:#64748b;margin-bottom:3px}
+ #orderRows td:nth-child(1){grid-column:1/-1;font-weight:700;font-size:14px!important}#orderRows td:nth-child(1)::before{content:'ORDEN / FECHA'}
+ #orderRows td:nth-child(2){grid-column:1/-1}#orderRows td:nth-child(2)::before{content:'CLIENTE'}
+ #orderRows td:nth-child(3){grid-column:1/-1}#orderRows td:nth-child(3)::before{content:'EQUIPO'}
+ #orderRows td:nth-child(4){grid-column:1/-1}#orderRows td:nth-child(4)::before{content:'ESTADO Y GARANTÍA'}
+ #orderRows td:nth-child(5)::before{content:'PRESUPUESTO'}#orderRows td:nth-child(6)::before{content:'COBRADO'}
+ #orderRows td:nth-child(7)::before{content:'SALDO'}
+ #orderRows td:nth-child(8){grid-column:1/-1;margin-top:3px!important;border-top:1px solid #e2e8f0!important;padding-top:9px!important}
+ #orderRows td:nth-child(8)::before{content:'ACCIONES';margin-bottom:7px}
+ #orderRows .order-actions{width:100%!important;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #orderRows .order-actions button{font-size:12px!important;padding:10px 6px!important;min-height:42px;white-space:normal}
+ #orderRows tr:has(.empty){display:block}#orderRows .empty{padding:15px!important;text-align:center}
+ .mobile-nav{position:fixed;bottom:0;left:0;right:0;z-index:900;display:grid;grid-template-columns:repeat(4,1fr);padding:7px max(8px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:#fff;border-top:1px solid #dce4ef;box-shadow:0 -5px 25px #10243a20}
+ .mobile-nav button{background:transparent;color:#24436c;min-width:0;min-height:50px;padding:5px 2px;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+ .mobile-nav button span{font-size:19px;line-height:1}.mobile-nav button:focus-visible{outline:2px solid #2563eb}
+ .alerts-panel{position:fixed!important;top:auto!important;bottom:calc(75px + env(safe-area-inset-bottom));left:10px;right:10px;width:auto!important;max-height:65dvh}
+ #printArea{display:none!important}
+}
+@media screen and (max-width:390px){.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media screen and (min-width:751px){.mobile-nav{display:none!important}}
+@media print{.mobile-nav{display:none!important}}
 </style></head><body>
 <section id="authGate"><div class="authBox"><div class="authBrand"><img src="logo-ca.png" alt="Logo de Ciber Acajutla"><div><h1>Ciber Acajutla</h1><span>Sistema de gestión de reparaciones</span></div></div><p class="authIntro">Bienvenido. Ingresa con tu cuenta autorizada para administrar las órdenes del taller.</p><form id="loginForm"><div class="field"><label for="loginEmail">Correo electrónico</label><input id="loginEmail" type="email" autocomplete="username" inputmode="email" placeholder="correo@ejemplo.com" required></div><div class="field"><label for="loginPassword">Contraseña</label><div class="passwordField"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Ingresa tu contraseña" required><button type="button" id="togglePassword" class="passwordToggle" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button></div></div><button type="submit" id="loginSubmit" class="authSubmit">Iniciar sesión</button></form><div id="authError" role="status" aria-live="polite"></div><p class="authNote">Acceso exclusivo para personal autorizado.</p></div></section>
 <div id="appRoot">
@@ -509,5 +548,18 @@ try{
  $('logoutBtn').onclick=()=>auth.signOut();
  auth.onAuthStateChanged(async user=>{unsubscribe.forEach(fn=>fn());unsubscribe=[];syncReady=false;pending=false;app.style.display='none';gate.style.display='grid';if(!user){currentStaff=null;auditEntries=[];$('auditPanel').hidden=true;$('loginPassword').value='';authMessage('');return}authMessage('Verificando autorización...');try{store=firebase.firestore();const staffDoc=await store.collection('staff').doc(user.uid).get();if(!staffDoc.exists||staffDoc.data().active!==true||!['admin','employee'].includes(staffDoc.data().role)){authMessage('Tu cuenta no está autorizada. Solicita acceso al administrador.');await auth.signOut();return}if(auth.currentUser?.uid!==user.uid)return;currentStaff=staffDoc.data();document.querySelectorAll('[data-admin-only]').forEach(el=>{el.hidden=currentStaff.role!=='admin';el.style.display=currentStaff.role==='admin'?'':'none'});['paid','estimate'].forEach(id=>{const el=$(id);if(el){el.disabled=false;el.required=true}});$('auditPanel').hidden=currentStaff.role!=='admin';$('sessionEmail').textContent=(currentStaff.name||user.email||'')+' · '+currentStaff.role;authMessage('');gate.style.display='none';app.style.display='block';startSync()}catch(err){authMessage('No se pudo verificar el acceso. Revisa las reglas de Firestore y tu conexión.')}});
 }catch(err){authMessage(err.message)}
+})();
+</script><nav class="mobile-nav" id="mobileNav" aria-label="Navegación móvil" hidden>
+<button type="button" data-target="top" aria-label="Ir al inicio"><span>⌂</span>Inicio</button>
+<button type="button" data-target="orderForm" aria-label="Nueva orden"><span>＋</span>Orden</button>
+<button type="button" data-target="orderRows" aria-label="Ver órdenes"><span>▤</span>Órdenes</button>
+<button type="button" data-target="repairHistory" aria-label="Ver historial"><span>◷</span>Historial</button>
+</nav><script>
+(function(){
+ const nav=document.getElementById('mobileNav');
+ function updateNav(){nav.hidden=getComputedStyle(document.getElementById('appRoot')).display==='none';}
+ const observer=new MutationObserver(updateNav);observer.observe(document.getElementById('appRoot'),{attributes:true,attributeFilter:['style']});updateNav();
+ nav.addEventListener('click',e=>{const b=e.target.closest('button[data-target]');if(!b)return;const id=b.dataset.target;if(id==='top'){window.scrollTo({top:0,behavior:'smooth'});return}const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});if(id==='orderForm'&&!document.getElementById('editId').value){document.getElementById('client').focus({preventScroll:true})}});
+ if('serviceWorker' in navigator && location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).catch(err=>console.warn('PWA:',err)));
 })();
 </script></body></html>
